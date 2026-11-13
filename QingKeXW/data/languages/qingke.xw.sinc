@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 SEL (Mark Thurston). Part of ghidra-qingke-xw.
+#
+# WCH QingKe "XW" compressed byte and half-word loads and stores
+# (LLVM: Xwchc, mnemonics qk.c.*; GCC: the "xw" extension).
+#
+# XW takes two kinds of RVC space:
+#   * the RV32DC slots c.fld / c.fsd / c.fldsp / c.fsdsp (quadrants 0 and 2,
+#     funct3 001 and 101). This language has no D, so those constructors are
+#     not built (FPSIZE "0"); and
+#   * quadrant 0, funct3 100, which the base C extension leaves reserved and
+#     Zcb uses for c.lbu/c.lhu/c.lh/c.sb/c.sh. Ghidra 12.1.4 has no Zcb, so
+#     nothing else claims it here. Never give a QingKe language Zcb.
+#
+# Layouts (bit numbers of the 16-bit parcel), from WCH's encoding table
+# (LLVM discourse 79392) and checked against LLVM 23.1.5's decoder:
+#
+#   qk.c.lbu   001 | u[0] u[4:3] | rs1' | u[2:1] | rd'  | 00   u = 0..31
+#   qk.c.sb    101 | u[0] u[4:3] | rs1' | u[2:1] | rs2' | 00   u = 0..31
+#   qk.c.lhu   001 | u[5:3]      | rs1' | u[2:1] | rd'  | 10   u = 0..62 even
+#   qk.c.sh    101 | u[5:3]      | rs1' | u[2:1] | rs2' | 10   u = 0..62 even
+#   qk.c.lbusp 100 | 00 | u[3:0]      | 00 | rd'  | 00         u = 0..15
+#   qk.c.lhusp 100 | 00 | u[3:1] u[4] | 01 | rd'  | 00         u = 0..30 even
+#   qk.c.sbsp  100 | 00 | u[3:0]      | 10 | rs2' | 00         u = 0..15
+#   qk.c.shsp  100 | 00 | u[3:1] u[4] | 11 | rs2' | 00         u = 0..30 even
+#
+# Loads zero-extend (lbu/lhu); there is no signed form.
+
+# byte offset, register base: u[0]=12, u[4:3]=11:10, u[2:1]=6:5
+xwbimm: uimm is cop1212 & cop1011 & cop0506
+    [ uimm = cop1212 | (cop0506 << 1) | (cop1011 << 3); ]
+    { local tmp:$(XLEN) = uimm; export tmp; }
+
+# half-word offset, register base: u[5:3]=12:10, u[2:1]=6:5
+xwhimm: uimm is cop1012 & cop0506
+    [ uimm = (cop0506 << 1) | (cop1012 << 3); ]
+    { local tmp:$(XLEN) = uimm; export tmp; }
+
+# byte offset, sp base: u[3:0]=10:7
+xwbspimm: uimm is cop0710
+    [ uimm = cop0710 + 0; ]
+    { local tmp:$(XLEN) = uimm; export tmp; }
+
+# half-word offset, sp base: u[3:1]=10:8, u[4]=7
+xwhspimm: uimm is cop0707 & cop0808 & cop0910
+    [ uimm = (cop0808 << 1) | (cop0910 << 2) | (cop0707 << 4); ]
+    { local tmp:$(XLEN) = uimm; export tmp; }
+
+
+:qk.c.lbu cr0204s,xwbimm(cr0709s) is cop0001=0x0 & cop1315=0x1 & cr0204s & cr0709s & xwbimm
+{
+	local ea:$(XLEN) = xwbimm + cr0709s;
+	cr0204s = zext(*[ram]:1 ea);
+}
+
+:qk.c.sb cr0204s,xwbimm(cr0709s) is cop0001=0x0 & cop1315=0x5 & cr0204s & cr0709s & xwbimm
+{
+	local ea:$(XLEN) = xwbimm + cr0709s;
+	*[ram]:1 ea = cr0204s:1;
+}
+
+:qk.c.lhu cr0204s,xwhimm(cr0709s) is cop0001=0x2 & cop1315=0x1 & cr0204s & cr0709s & xwhimm
+{
+	local ea:$(XLEN) = xwhimm + cr0709s;
+	cr0204s = zext(*[ram]:2 ea);
+}
+
+:qk.c.sh cr0204s,xwhimm(cr0709s) is cop0001=0x2 & cop1315=0x5 & cr0204s & cr0709s & xwhimm
+{
+	local ea:$(XLEN) = xwhimm + cr0709s;
+	*[ram]:2 ea = cr0204s:2;
+}
+
+:qk.c.lbusp cr0204s,xwbspimm(sp) is cop0001=0x0 & cop1315=0x4 & cop1112=0x0 & cop0506=0x0 & cr0204s & sp & xwbspimm
+{
+	local ea:$(XLEN) = xwbspimm + sp;
+	cr0204s = zext(*[ram]:1 ea);
+}
+
+:qk.c.lhusp cr0204s,xwhspimm(sp) is cop0001=0x0 & cop1315=0x4 & cop1112=0x0 & cop0506=0x1 & cr0204s & sp & xwhspimm
+{
+	local ea:$(XLEN) = xwhspimm + sp;
+	cr0204s = zext(*[ram]:2 ea);
+}
+
+:qk.c.sbsp cr0204s,xwbspimm(sp) is cop0001=0x0 & cop1315=0x4 & cop1112=0x0 & cop0506=0x2 & cr0204s & sp & xwbspimm
+{
+	local ea:$(XLEN) = xwbspimm + sp;
+	*[ram]:1 ea = cr0204s:1;
+}
+
+:qk.c.shsp cr0204s,xwhspimm(sp) is cop0001=0x0 & cop1315=0x4 & cop1112=0x0 & cop0506=0x3 & cr0204s & sp & xwhspimm
+{
+	local ea:$(XLEN) = xwhspimm + sp;
+	*[ram]:2 ea = cr0204s:2;
+}

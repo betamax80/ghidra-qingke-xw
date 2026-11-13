@@ -1,0 +1,35 @@
+# libwchnet: WCH's networking blob, every instruction both ways (2026-11-13 00:35)
+
+- libwchnet.a, CH32V407 EVT V1.4 (469,534 B, sha256 5c1feadc…, matched): 56 archive entries, 28 distinct members (each stored twice, byte-identical), 249 executable sections, 41,600 bytes of code
+- llvm-objdump 23.1.5 --mattr=+m,+a,+c,+xwchc,+zba,+zbb,+zbc,+zbs,+zicond -M no-aliases, per member: 14,094 instructions, 1,160 XW (qk.c.lbu 657, qk.c.lbusp 5, qk.c.lhu 169, qk.c.sb 217, qk.c.sbsp 4, qk.c.sh 107, qk.c.shsp 1)
+- Ghidra: the same section bytes, unrelocated, imported raw and swept section by section
+
+## Ghidra RISCV:LE:32:QingKe-XW vs llvm-objdump
+
+- compared: 14,094
+- match: 12,174
+- match (by a stated spelling rule): 1,920
+- match (both undecoded): 0
+- mismatch: 0
+- llvm XW: 1,160
+- llvm XW matched: 1,160
+- spelling rules used: jalr rd,rs,imm order x1108, li=addi rd,zero,imm x220, mv=addi rd,rs,0 x217, jr=jalr zero,0(rs) x170, ret x129, c.lui 6-bit field = llvm 20-bit value x61, neg=sub rd,zero,rs x11, not=xori rd,rs,-1 x4
+
+## Before: Ghidra RISCV:LE:32:default vs llvm-objdump (the same bytes)
+
+- compared: 14,094
+- match: 11,014
+- match (by a stated spelling rule): 1,920
+- match (both undecoded): 0
+- mismatch: 1,160
+- llvm XW: 1,160
+- llvm XW matched: 0
+- spelling rules used: jalr rd,rs,imm order x1108, li=addi rd,zero,imm x220, mv=addi rd,rs,0 x217, jr=jalr zero,0(rs) x170, ret x129, c.lui 6-bit field = llvm 20-bit value x61, neg=sub rd,zero,rs x11, not=xori rd,rs,-1 x4
+
+Mismatches by class:
+- mnemonic differs: 1,150  (Ghidra c.fld / llvm qk.c.lbu x657, Ghidra c.fsd / llvm qk.c.sb x217, Ghidra c.fldsp / llvm qk.c.lhu x169, Ghidra c.fsdsp / llvm qk.c.sh x107)
+- llvm decodes, Ghidra BAD: 10  (qk.c.lbusp x5, qk.c.sbsp x4, qk.c.shsp x1)
+
+One example per class (key, Ghidra, llvm):
+
+RESULT: PASS (expects 1,160 XW, all matched, 0 mismatches)

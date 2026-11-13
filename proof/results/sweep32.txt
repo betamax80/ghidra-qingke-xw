@@ -1,0 +1,42 @@
+# sweep32: 32-bit words in OP, OP-IMM, custom-0 and MISC-MEM (2026-11-13 00:35)
+
+- 141,376 words: OP every funct7 x funct3 x 3 register sets (3,072); OP-IMM every funct3 x imm12 (32,768); custom-0 and MISC-MEM every funct3 x bits 31:25 x bits 11:7 (32,768 each); 40,000 random words in those opcodes (seed 20261112)
+- references: llvm-objdump 23.1.5 --mattr=+m,+a,+c,+xwchc,+zba,+zbb,+zbc,+zbs,+zicond -M no-aliases; WCH's objdump (GCC 15 toolchain v1.4, -M no-aliases, arch attribute rv32imac_zicsr_zifencei_zba_zbb_zbc_zbs_zicond) for mcpy, mrsl, mrslu, wexti; the delay instruction from CH32V407 RM V1.3 (EN) 9.2.1.3, printed p.61
+- reference per word: none 100,614, llvm-objdump 32,734, WCH objdump 4,061, RM V1.3 table 3,967
+- new-instruction words met (by reference): andn 9, bclr 10, bclri 40, bext 11, bexti 37, binv 14, binvi 43, bset 11, bseti 43, clmul 13, clmulh 15, clmulr 11, clz 1, cpop 2, ctz 1, czero.eqz 13, czero.nez 10, max 12, maxu 11, mcpy 43, min 15, minu 15, mrsl 1,354, mrslu 1,345, orc.b 1, orn 14, qk.delay 3,967, rev8 1, rol 18, ror 7, rori 42, sext.b 2, sext.h 1, sh1add 14, sh2add 17, sh3add 10, wexti 1,319, xnor 14, zext.h 1
+- Ghidra's riscv.custom.sinc placeholders (counted as undecoded): custom0 8,048, custom0.rd 5,393, custom0.rs1 5,392, custom0.rd.rs1.rs2 5,385, custom0.rd.rs1 5,336, custom0.rs1.rs2 5,316
+
+## Ghidra RISCV:LE:32:QingKe-XW vs the references
+
+- match (RM V1.3 table): 3,967
+- match (WCH objdump): 4,061
+- match (all undecoded): 100,614
+- match (llvm-objdump): 32,731
+- mismatch, inherited base ISA: 3
+
+Mismatches by class (Ghidra / reference):
+- base mnemonic differs: 3  (ori / prefetch.w x2, ori / prefetch.r x1)
+
+One example per class (word, Ghidra, reference):
+- base mnemonic differs: ori / prefetch.w: ('f8316013', ('ori', ['zero', 'sp', -125]), ('prefetch.w', [-128, 'sp']))
+- base mnemonic differs: ori / prefetch.r: ('8012e013', ('ori', ['zero', 't0', -2047]), ('prefetch.r', [-2048, 't0']))
+
+## The second oracle: WCH's GNU objdump on the words llvm decodes (reported, not a gate)
+
+- agree 32,731, binutils only 340, differ 3
+  - binutils bexti / llvm <unknown> x47
+  - binutils slli / llvm <unknown> x46
+  - binutils srai / llvm <unknown> x45
+  - binutils bseti / llvm <unknown> x44
+  - binutils bclri / llvm <unknown> x44
+  - binutils binvi / llvm <unknown> x41
+  - binutils srli / llvm <unknown> x37
+  - binutils rori / llvm <unknown> x36
+  - llvm prefetch.w / binutils ori x2
+  - llvm prefetch.r / binutils ori x1
+
+Before: Ghidra's RISCV:LE:32:default on the 8,507 new-instruction words: 8,265 not decoded as the reference says. By (reference, Ghidra): qk.delay->custom0 x3967, mrsl->custom0 x1354, mrslu->custom0 x1345, wexti->custom0 x1319, bseti->sbseti x43, binvi->sbinvi x43, mcpy->BAD x43, rori->rori x42, bclri->sbclri x40, bexti->sbexti x37, rol->rol x18, sh2add->sh2add x17, clmulh->clmulh x15, min->min x15, minu->minu x15, sh1add->sh1add x14, xnor->xnor x14, orn->orn x14, binv->sbinv x14, clmul->clmul x13, czero.eqz->cmov x13, max->max x12, clmulr->clmulr x11, maxu->maxu x11, bset->sbset x11
+
+Negative control: word 00b5700f (mcpy) with rs1/rs2 swapped in Ghidra's text: caught
+
+RESULT: PASS (0 mismatches on the new instructions, each of the 39 new mnemonics met; 3 inherited base-ISA differences listed above)

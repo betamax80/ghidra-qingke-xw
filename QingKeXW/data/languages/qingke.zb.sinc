@@ -1,0 +1,114 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 SEL (Mark Thurston). Part of ghidra-qingke-xw.
+#
+# Ratified bit manipulation as WCH's QingKe V4 / V3V cores have it: Zba, Zbb, Zbs and Zbc
+# (RISC-V Bitmanip 1.0.0 encodings).
+#
+# Replaces Ghidra 12.1.4's riscv.rv32b.sinc, which is the 0.92 draft: draft names (sbset, sbext, pcnt, grevi,
+# gorci, pack for zext.h), draft-only ops that never became standard (cmov, cmix, fsl, fsr, shfl, gorc, ...;
+# cmov sits on Zicond's czero.eqz encoding), and every constructor "unimpl" with no p-code, so the decompiler
+# stopped at each one.
+#
+# Which extensions: WCH's own per-chip table (MounRiver III WCHAgent mcu_isa.json) gives
+# rv32imac_zba_zbb_zbc_zbs_..._xw for the CH32V4x7 (QingKe V3V) and rv32imafc_zba_zbb_zbc_zbs_xw for the CH32H417.
+# No Zbkb (pack, packh, brev8, zip, unzip): those encodings stay undecoded here, except pack rd, rs1, zero, which
+# is Zbb's zext.h on RV32.
+#
+# Adapted from the same author's Zb file for the RP2350's Hazard3 core: Zbkb dropped, Zbc added. Each encoding is
+# checked against llvm-objdump 23.1.5 and WCH's GCC 15 objdump, and each p-code body by emulation against a
+# reference model (proof/xwproof.py sweep32, emu).
+
+qkshamt: op2024 is op2024 & op2525=0 { local tmp:$(XLEN) = op2024; export tmp; }
+
+# ---- Zba
+:sh1add rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x2 & funct7=0x10 { rd = (rs1 << 1) + rs2; }
+:sh2add rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x4 & funct7=0x10 { rd = (rs1 << 2) + rs2; }
+:sh3add rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x6 & funct7=0x10 { rd = (rs1 << 3) + rs2; }
+
+# ---- Zbb
+:andn rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x7 & funct7=0x20 { rd = rs1 & ~rs2; }
+:orn  rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x6 & funct7=0x20 { rd = rs1 | ~rs2; }
+:xnor rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x4 & funct7=0x20 { rd = ~(rs1 ^ rs2); }
+
+:clz  rd,rs1 is rd & rs1 & op0006=0x13 & funct3=0x1 & funct7=0x30 & op2024=0x0 { rd = lzcount(rs1); }
+:ctz  rd,rs1 is rd & rs1 & op0006=0x13 & funct3=0x1 & funct7=0x30 & op2024=0x1
+{
+	local x:$(XLEN) = rs1;
+	rd = popcount((x & -x) - 1);
+}
+:cpop rd,rs1 is rd & rs1 & op0006=0x13 & funct3=0x1 & funct7=0x30 & op2024=0x2 { rd = popcount(rs1); }
+:sext.b rd,rs1 is rd & rs1 & op0006=0x13 & funct3=0x1 & funct7=0x30 & op2024=0x4 { rd = sext(rs1:1); }
+:sext.h rd,rs1 is rd & rs1 & op0006=0x13 & funct3=0x1 & funct7=0x30 & op2024=0x5 { rd = sext(rs1:2); }
+# zext.h is pack rd, rs1, zero on RV32 (no other pack encoding is decoded: no Zbkb)
+:zext.h rd,rs1 is rd & rs1 & op0006=0x33 & funct3=0x4 & funct7=0x04 & op2024=0x0 { rd = zext(rs1:2); }
+
+:max  rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x6 & funct7=0x05
+{
+	local a:$(XLEN) = rs1; local b:$(XLEN) = rs2;
+	rd = a ^ ((a ^ b) & (0 - zext(a s< b)));
+}
+:maxu rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x7 & funct7=0x05
+{
+	local a:$(XLEN) = rs1; local b:$(XLEN) = rs2;
+	rd = a ^ ((a ^ b) & (0 - zext(a < b)));
+}
+:min  rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x4 & funct7=0x05
+{
+	local a:$(XLEN) = rs1; local b:$(XLEN) = rs2;
+	rd = a ^ ((a ^ b) & (0 - zext(b s< a)));
+}
+:minu rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x5 & funct7=0x05
+{
+	local a:$(XLEN) = rs1; local b:$(XLEN) = rs2;
+	rd = a ^ ((a ^ b) & (0 - zext(b < a)));
+}
+
+:rol  rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x1 & funct7=0x30
+{
+	local x:$(XLEN) = rs1; local s:$(XLEN) = rs2 & 31;
+	rd = (x << s) | (x >> ((32 - s) & 31));
+}
+:ror  rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x5 & funct7=0x30
+{
+	local x:$(XLEN) = rs1; local s:$(XLEN) = rs2 & 31;
+	rd = (x >> s) | (x << ((32 - s) & 31));
+}
+:rori rd,rs1,qkshamt is rd & rs1 & qkshamt & op0006=0x13 & funct3=0x5 & op2631=0x18
+{
+	local x:$(XLEN) = rs1; local s:$(XLEN) = qkshamt;
+	rd = (x >> s) | (x << ((32 - s) & 31));
+}
+
+:orc.b rd,rs1 is rd & rs1 & op0006=0x13 & funct3=0x5 & op2031=0x287
+{
+	local x:$(XLEN) = rs1;
+	local b0:1 = x:1; local b1:1 = x(1); local b2:1 = x(2); local b3:1 = x(3);
+	rd = (zext(b0 != 0) * 0xff) | ((zext(b1 != 0) * 0xff) << 8) | ((zext(b2 != 0) * 0xff) << 16)
+		| ((zext(b3 != 0) * 0xff) << 24);
+}
+:rev8 rd,rs1 is rd & rs1 & op0006=0x13 & funct3=0x5 & op2031=0x698
+{
+	local x:$(XLEN) = rs1;
+	rd = (x >> 24) | ((x >> 8) & 0xff00) | ((x << 8) & 0xff0000) | (x << 24);
+}
+
+# ---- Zbs
+:bclr rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x1 & funct7=0x24 { rd = rs1 & ~(1 << (rs2 & 31)); }
+:bext rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x5 & funct7=0x24 { rd = (rs1 >> (rs2 & 31)) & 1; }
+:binv rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x1 & funct7=0x34 { rd = rs1 ^ (1 << (rs2 & 31)); }
+:bset rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x1 & funct7=0x14 { rd = rs1 | (1 << (rs2 & 31)); }
+:bclri rd,rs1,qkshamt is rd & rs1 & qkshamt & op0006=0x13 & funct3=0x1 & op2631=0x12 { rd = rs1 & ~(1 << qkshamt); }
+:bexti rd,rs1,qkshamt is rd & rs1 & qkshamt & op0006=0x13 & funct3=0x5 & op2631=0x12 { rd = (rs1 >> qkshamt) & 1; }
+:binvi rd,rs1,qkshamt is rd & rs1 & qkshamt & op0006=0x13 & funct3=0x1 & op2631=0x1a { rd = rs1 ^ (1 << qkshamt); }
+:bseti rd,rs1,qkshamt is rd & rs1 & qkshamt & op0006=0x13 & funct3=0x1 & op2631=0x0a { rd = rs1 | (1 << qkshamt); }
+
+# ---- Zbc
+# Carry-less multiply. P-code has no carry-less multiply; written out it is a 32-step loop that the decompiler
+# would print inline at every use, so these are named operations (standard semantics, RISC-V Bitmanip 1.0.0
+# 2.3): clmul = low 32 bits of the 64-bit carry-less product, clmulh = high 32 bits, clmulr = bits 62..31.
+define pcodeop clmul;
+define pcodeop clmulh;
+define pcodeop clmulr;
+:clmul  rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x1 & funct7=0x05 { rd = clmul(rs1, rs2); }
+:clmulr rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x2 & funct7=0x05 { rd = clmulr(rs1, rs2); }
+:clmulh rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x3 & funct7=0x05 { rd = clmulh(rs1, rs2); }

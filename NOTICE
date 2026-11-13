@@ -1,0 +1,34 @@
+ghidra-qingke-xw
+Copyright 2026 SEL (Mark Thurston)
+
+Licensed under the Apache License, Version 2.0 (LICENSE).
+
+This product includes files from Ghidra 12.1.4 (Ghidra/Processors/RISCV/data/languages).
+Ghidra: this product includes software developed at National Security Agency (https://www.nsa.gov).
+Portions of Ghidra were created by the U.S. Government and are not subject to U.S. copyright
+protection under 17 U.S.C.; the remaining portions are copyright their respective authors. Ghidra
+is released under the Apache License, Version 2.0.
+
+Unmodified copies of Ghidra 12.1.4 files (sha256 in tools/build.py, checked on every build):
+  QingKeXW/data/languages/riscv.csr.sinc
+  QingKeXW/data/languages/riscv.custom.sinc
+  QingKeXW/data/languages/riscv.priv.sinc
+  QingKeXW/data/languages/riscv.reg.sinc
+  QingKeXW/data/languages/riscv.rv32a.sinc
+  QingKeXW/data/languages/riscv.rv32i.sinc
+  QingKeXW/data/languages/riscv.rv32m.sinc
+  QingKeXW/data/languages/riscv.table.sinc
+  QingKeXW/data/languages/riscv.zi.sinc
+  QingKeXW/data/languages/riscv32.cspec
+  QingKeXW/data/languages/riscv32.dwarf
+  QingKeXW/data/languages/RV32.pspec
+
+Modified copy (the change is stated in the file's header):
+  QingKeXW/data/languages/qingke.rvc.sinc   from riscv.rvc.sinc; c.flw/c.flwsp now need FPSIZE "32" or "64"
+
+The XW encodings follow WCH's encoding table (posted to LLVM discourse thread 79392) and LLVM's
+Xwchc implementation; the WCH custom encodings follow WCH's GCC 15 binutils and the CH32V407
+Reference Manual V1.3. No code or data from any of them is included.
+
+WCH, QingKe and CH32 are names of Nanjing Qinheng Microelectronics (WCH). This project is not made,
+endorsed or supported by WCH, by the Ghidra project or by the National Security Agency.

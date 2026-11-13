@@ -1,0 +1,3 @@
+# Keep the language files byte-exact: tools/build.py checks the Ghidra copies by sha256.
+QingKeXW/** -text
+release/** binary

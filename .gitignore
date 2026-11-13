@@ -1,0 +1,6 @@
+# built by tools/build.py: the compiled language and the release zip (publish the zip as a release asset)
+QingKeXW/data/languages/*.sla
+release/
+__pycache__/
+# proof working directories, if kept inside the repository
+work/

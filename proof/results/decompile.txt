@@ -1,0 +1,8 @@
+# decompile: libwchnet.a's objects through Ghidra's decompiler (2026-11-13 00:36)
+
+- RISCV:LE:32:QingKe-XW: 26 objects with functions, 246 functions, 246 decompiled, 0 failed; 0 with float/double types; 0 functions show 0 in_*/unaff_* (read-before-set) registers (); languages used: RISCV:LE:32:QingKe-XW; 28 s
+- RISCV:LE:32:default: 26 objects with functions, 246 functions, 246 decompiled, 0 failed; 0 with float/double types; 34 functions show 40 in_*/unaff_* (read-before-set) registers (a5 6, s1 4, stack_000001c0 4, a4 3, fs1 3, stack_00000198 3, fa5 2, stack_000001d8 2); languages used: RISCV:LE:32:default; 29 s
+
+Per function, read-before-set registers: fewer with RISCV:LE:32:QingKe-XW in 34, more in 0, the same in 212.
+
+RESULT: PASS (RISCV:LE:32:QingKe-XW: every function decompiles, no float types, and no function has more read-before-set registers than under RISCV:LE:32:default)

@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 SEL (Mark Thurston). Part of ghidra-qingke-xw.
+#
+# Zicond (RISC-V Integer Conditional Operations 1.0.0): czero.eqz, czero.nez.
+#
+# QingKe V3V has it: czero gave the specified results on a CH32V467 evaluation board (8 Nov 2026); that part's
+# MIMPID read 0xdc688003, whose low byte 3 the QingKe V3 manual ties to Zicond.
+# Older QingKe cores do not have it; there these encodings are illegal, so decoding them costs nothing.
+#
+# Ghidra 12.1.4's draft bitmanip file put "cmov" (no p-code) on czero.eqz's encoding; that file is not used here.
+
+:czero.eqz rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x5 & funct7=0x07
+{
+	local c:$(XLEN) = zext(rs2 != 0);
+	rd = rs1 * c;
+}
+:czero.nez rd,rs1,rs2 is rd & rs1 & rs2 & op0006=0x33 & funct3=0x7 & funct7=0x07
+{
+	local c:$(XLEN) = zext(rs2 == 0);
+	rd = rs1 * c;
+}

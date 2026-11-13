@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 SEL (Mark Thurston). Part of ghidra-qingke-xw.
+#
+# The instruction sets of a QingKe core: RV32IMAC + Zicsr/Zifencei + Zba/Zbb/Zbc/Zbs + Zicond + XW,
+# plus WCH's custom instructions. Ghidra's riscv.instr.sinc includes every extension; this one includes only
+# those a QingKe core has.
+
+@include "riscv.rv32i.sinc"
+@include "riscv.rv32a.sinc"
+@include "riscv.rv32m.sinc"
+# ratified Zba/Zbb/Zbs/Zbc with p-code (not Ghidra's draft riscv.rv32b.sinc)
+@include "qingke.zb.sinc"
+@include "qingke.zicond.sinc"
+
+@include "riscv.csr.sinc"
+@include "riscv.priv.sinc"
+@include "qingke.rvc.sinc"
+@include "riscv.zi.sinc"
+
+@include "qingke.xw.sinc"
+@include "qingke.wch.sinc"

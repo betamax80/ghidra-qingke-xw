@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 SEL (Mark Thurston). Part of ghidra-qingke-xw.
+#
+# WCH's own 32-bit custom instructions on QingKe cores.
+#
+# Encodings: WCH's GCC 15 binutils (WCH's RISC-V GCC 15 toolchain v1.4, the copy MounRiver Studio 3.0.0 ships),
+# whose assembler and objdump know mcpy, mrsl, mrslu and wexti; and the CH32V407 Reference
+# Manual V1.3 (EN), 9.2.1.3-9.2.1.4, printed pp.61-62 (rendered 12 Nov 2026), for the delay instruction and mcpy.
+# Each is checked against WCH's objdump or a transcription of the RM table (proof/xwproof.py sweep32).
+#
+# Semantics are written as p-code only where they are proven; the rest are named operations (pcodeop).
+
+define pcodeop mcpy;
+define pcodeop mcpy_src_after;
+define pcodeop mrsl;
+define pcodeop mrslu;
+define pcodeop wexti;
+define pcodeop qk_delay;
+
+# writeable views of rs2 / rs3 (an x0 operand writes a dropped temporary, as Ghidra's rd does)
+qkw2: r2024 is r2024 { export r2024; }
+qkw2: zero is r2024=0 & zero { local tmp:$(XLEN) = 0; export tmp; }
+qkw3: r2731 is r2731 { export r2731; }
+qkw3: zero is r2731=0 & zero { local tmp:$(XLEN) = 0; export tmp; }
+
+# ---- mcpy rs1, rs2, rs3: hardware memory copy (MISC-MEM, funct3 111, rd and bits 26:25 zero)
+# Operands as WCH's compiler uses them (SDK core_riscv.h ASM_MCPY; CH585 __wrap_memcpy): rs1 = source END
+# (exclusive), rs2 = source start, rs3 = destination. RM V1.3 p.61 labels rs1 "destination" and rs3 "end"; a
+# silicon test settled it for the compiler's order (CH32V467 evaluation board, 8 Nov 2026).
+# Measured in the same run: bytes, upward, any alignment; rs1 unchanged; rs3 = dst + (end - src) in every case
+# (n = 0, 1, 256, 1001 unaligned, 1024 from flash, 4096, 8192 with an interrupt). rs2 afterwards was end rounded
+# up to 4 in those cases, which is a pattern, not a definition, so it stays a named operation. Overlap,
+# end < src and faults are not modelled: the copy itself is the named operation mcpy(dst, src, end).
+:mcpy rs1, rs2, rs3 is op0006=0x0f & funct3=0x7 & op0711=0 & op2526=0 & rs1 & rs2 & rs3 & qkw2 & qkw3
+{
+	local end:$(XLEN) = rs1;
+	local src:$(XLEN) = rs2;
+	local dst:$(XLEN) = rs3;
+	mcpy(dst, src, end);
+	qkw3 = dst + (end - src);
+	qkw2 = mcpy_src_after(src, end);
+}
+
+# ---- mrsl / mrslu / wexti rd, rs1, rs2, imm5 (custom-0, funct3 000; bits 26:25 = 11 / 10 / 00; imm5 = 31:27)
+# WCH's assembler encodes them and its objdump decodes them; bits 26:25 = 01 is not an instruction there.
+# Meaning unknown: the QingKe V3 manual's chapter 9 table lists "MRS (shift multiplication custom instruction)"
+# for V3B only, and on a CH32V467 (V3V) all three trap as illegal (silicon test, 8 Nov 2026). Named operations.
+:mrsl rd, rs1, rs2, op2731 is op0006=0x0b & funct3=0x0 & op2526=0x3 & rd & rs1 & rs2 & op2731
+{
+	rd = mrsl(rs1, rs2, op2731:$(XLEN));
+}
+:mrslu rd, rs1, rs2, op2731 is op0006=0x0b & funct3=0x0 & op2526=0x2 & rd & rs1 & rs2 & op2731
+{
+	rd = mrslu(rs1, rs2, op2731:$(XLEN));
+}
+:wexti rd, rs1, rs2, op2731 is op0006=0x0b & funct3=0x0 & op2526=0x0 & rd & rs1 & rs2 & op2731
+{
+	rd = wexti(rs1, rs2, op2731:$(XLEN));
+}
+
+# ---- the custom delay instruction (custom-0, funct3 001), RM V1.3 9.2.1.3 p.61
+#   [31:20] imm[11:0]   [19:15] rs1   [11:9] match   [8] div   [7] sel (1: rs1 + rs2, 0: rs1 + imm)
+# match: 001 load, 010 store, 011 load/store, 100 delay, 110 all (pipeline paused), 111 per the CSR;
+# 000 and 101 are reserved and are left undecoded. The instruction writes no register (there is no rd field).
+# WCH's tools have no mnemonic for it; "qk.delay" is this language's name (LLVM's prefix for QingKe vendor
+# instructions), and the operands are shown raw: qk.delay match, rs1, imm12, div, sel. With sel = 1 the RM does not
+# say which bits hold rs2 (the imm field's low five bits, by the usual layout), so imm12 is shown as it is.
+# Silicon (CH32V467, 8 Nov 2026): "all" with rs1 + imm = N waits N + 1 cycles; rs1 = imm = 0 stalls for
+# seconds; never emit that.
+qkdlymatch: "load"  is op0911=1 { export 1:1; }
+qkdlymatch: "store" is op0911=2 { export 2:1; }
+qkdlymatch: "ldst"  is op0911=3 { export 3:1; }
+qkdlymatch: "delay" is op0911=4 { export 4:1; }
+qkdlymatch: "all"   is op0911=6 { export 6:1; }
+qkdlymatch: "csr"   is op0911=7 { export 7:1; }
+
+# One constructor per match value: SLEIGH ranks constructors by their own fixed bits, not a subtable's, so each
+# must fix bits 11:9 itself to outrank riscv.custom.sinc's placeholder "custom0" (funct3 001).
+macro qkdelay(m, r, i, d, s) {
+	qk_delay(m, r, i, d, s);
+}
+:qk.delay qkdlymatch, rs1, op2031, op0808, op0707 is op0006=0x0b & funct3=0x1 & op0911=1 & qkdlymatch & rs1
+	& op2031 & op0808 & op0707 { qkdelay(qkdlymatch, rs1, op2031:$(XLEN), op0808:1, op0707:1); }
+:qk.delay qkdlymatch, rs1, op2031, op0808, op0707 is op0006=0x0b & funct3=0x1 & op0911=2 & qkdlymatch & rs1
+	& op2031 & op0808 & op0707 { qkdelay(qkdlymatch, rs1, op2031:$(XLEN), op0808:1, op0707:1); }
+:qk.delay qkdlymatch, rs1, op2031, op0808, op0707 is op0006=0x0b & funct3=0x1 & op0911=3 & qkdlymatch & rs1
+	& op2031 & op0808 & op0707 { qkdelay(qkdlymatch, rs1, op2031:$(XLEN), op0808:1, op0707:1); }
+:qk.delay qkdlymatch, rs1, op2031, op0808, op0707 is op0006=0x0b & funct3=0x1 & op0911=4 & qkdlymatch & rs1
+	& op2031 & op0808 & op0707 { qkdelay(qkdlymatch, rs1, op2031:$(XLEN), op0808:1, op0707:1); }
+:qk.delay qkdlymatch, rs1, op2031, op0808, op0707 is op0006=0x0b & funct3=0x1 & op0911=6 & qkdlymatch & rs1
+	& op2031 & op0808 & op0707 { qkdelay(qkdlymatch, rs1, op2031:$(XLEN), op0808:1, op0707:1); }
+:qk.delay qkdlymatch, rs1, op2031, op0808, op0707 is op0006=0x0b & funct3=0x1 & op0911=7 & qkdlymatch & rs1
+	& op2031 & op0808 & op0707 { qkdelay(qkdlymatch, rs1, op2031:$(XLEN), op0808:1, op0707:1); }

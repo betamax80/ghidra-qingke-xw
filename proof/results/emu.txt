@@ -1,0 +1,50 @@
+# emu: p-code run in Ghidra's emulator against reference models (2026-11-13 00:35)
+
+- 198 instruction words (rd a0, rs1 a1, rs2 a2; every shamt for the immediate forms), each confirmed as that instruction by llvm-objdump, WCH's objdump or the RM table: 198 of 198
+- 10,008 cases through Ghidra's p-code emulator (EmulatorHelper, one step each; a0 preset to 0xdeadbeef; a1/a2 and pc checked too): 10,008 agree, 0 differ
+
+| instruction | cases | differ | checked against |
+|---|---|---|---|
+| andn | 289 | 0 | reference model (value) |
+| bclr | 289 | 0 | reference model (value) |
+| bclri | 672 | 0 | reference model (value) |
+| bext | 289 | 0 | reference model (value) |
+| bexti | 672 | 0 | reference model (value) |
+| binv | 289 | 0 | reference model (value) |
+| binvi | 672 | 0 | reference model (value) |
+| bset | 289 | 0 | reference model (value) |
+| bseti | 672 | 0 | reference model (value) |
+| clmul | 289 | 0 | named operation's operands and output register |
+| clmulh | 289 | 0 | named operation's operands and output register |
+| clmulr | 289 | 0 | named operation's operands and output register |
+| clz | 60 | 0 | reference model (value) |
+| cpop | 60 | 0 | reference model (value) |
+| ctz | 60 | 0 | reference model (value) |
+| czero.eqz | 289 | 0 | reference model (value) |
+| czero.nez | 289 | 0 | reference model (value) |
+| max | 289 | 0 | reference model (value) |
+| maxu | 289 | 0 | reference model (value) |
+| mcpy | 7 | 0 | silicon (CH32V467, 8 Nov 2026): rs1 and rs3 after, plus the named copy's operands |
+| min | 289 | 0 | reference model (value) |
+| minu | 289 | 0 | reference model (value) |
+| mrsl | 40 | 0 | named operation's operands and output register |
+| mrslu | 20 | 0 | named operation's operands and output register |
+| orc.b | 60 | 0 | reference model (value) |
+| orn | 289 | 0 | reference model (value) |
+| qk.delay | 12 | 0 | RM table operands; no register written |
+| rev8 | 60 | 0 | reference model (value) |
+| rol | 289 | 0 | reference model (value) |
+| ror | 289 | 0 | reference model (value) |
+| rori | 672 | 0 | reference model (value) |
+| sext.b | 60 | 0 | reference model (value) |
+| sext.h | 60 | 0 | reference model (value) |
+| sh1add | 289 | 0 | reference model (value) |
+| sh2add | 289 | 0 | reference model (value) |
+| sh3add | 289 | 0 | reference model (value) |
+| wexti | 20 | 0 | named operation's operands and output register |
+| xnor | 289 | 0 | reference model (value) |
+| zext.h | 60 | 0 | reference model (value) |
+
+Negative controls: ror judged with rol's model: 210 of 210 caught; mcpy.order with rs3_after + 1: 1 of 1 caught
+
+RESULT: PASS

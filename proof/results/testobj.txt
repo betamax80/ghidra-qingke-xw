@@ -1,0 +1,17 @@
+# testobj: an LLVM MC test object, Ghidra vs llvm-objdump (2026-11-13 00:35)
+
+- source: xw-test.s, 9,086 instructions (8,704 qk.* written out, every register and offset; 90 RV32IMA + Zicsr lines and 239 Zba/Zbb/Zbs/Zbc/Zicond lines (34 mnemonics, every shamt) under .option norvc; 53 C lines, 8 of them lbu/lhu/sb/sh that llvm-mc compresses to XW)
+- assembled: clang -cc1as (LLVM 23.1.5's MC assembler; this install has no llvm-mc.exe), features +m,+a,+c,+xwchc,+zba,+zbb,+zbc,+zbs,+zicond; no relocations; imported with Ghidra's ELF loader, language pinned to RISCV:LE:32:QingKe-XW
+
+## Ghidra vs llvm-objdump -M no-aliases
+
+- compared: 9,086
+- match: 9,061
+- match (by a stated spelling rule): 25
+- match (both undecoded): 0
+- mismatch: 0
+- llvm XW: 8,712
+- llvm XW matched: 8,712
+- spelling rules used: fence sets as bits x4, CSR name = CSR number x4, c.lui 6-bit field = llvm 20-bit value x3, jalr rd,rs,imm order x2, ret x2, csrr=csrrs rd,csr,zero x2, j=jal zero,t x1, jr imm(rs)=jalr zero,imm(rs) x1, nop=addi zero,zero,0 x1, li=addi rd,zero,imm x1, mv=addi rd,rs,0 x1, not=xori rd,rs,-1 x1, neg=sub rd,zero,rs x1, csrc=csrrc zero,csr,x x1
+
+RESULT: PASS (expects 9,086 compared, 8,712 XW matched, 0 mismatches)

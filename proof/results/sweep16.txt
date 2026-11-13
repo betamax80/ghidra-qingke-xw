@@ -1,0 +1,53 @@
+# sweep16: every 16-bit parcel (2026-11-13 00:39)
+
+## Reference 1: LLVM's Xwchc MC tests (from the directory given by LLVM_MC_TESTS; sha256 xwchc-valid.s f8b21d50de2e, xwchc-compress.s 5896c67de63c)
+
+- xwchc-valid.s: 44 of 44 encodings decode as the file says (expected 44)
+- xwchc-compress.s: 16 of 16 compressed encodings decode to the instruction written
+
+## LLVM's operand limits (as in xwchc-invalid.s)
+
+- 8,704 parcels decode as qk.* (expected 8,704); 0 outside LLVM's limits (x8-x15; 0-31, even 0-62; sp forms base sp, 0-15, even 0-30)
+
+## Reference 2: WCH's XW encoding table (posted in LLVM discourse thread 79392), transcribed
+
+- parcels the table defines as XW: 8,704; parcels where Ghidra differs from the table: 0
+
+## P-code of every qk.* decode
+
+- 8,704 of 8,704 have one LOAD (zero-extended into rd') or one STORE (rs2' low byte/half) of the right width at base + offset
+
+## All 49,152 16-bit parcels: Ghidra RISCV:LE:32:QingKe-XW vs llvm-objdump 23.1.5 --mattr=+m,+a,+c,+xwchc,+zba,+zbb,+zbc,+zbs,+zicond -M no-aliases
+
+- compared: 49,152
+- match: 35,462
+- match (by a stated spelling rule): 1,954
+- match (both undecoded): 11,559
+- mismatch: 177
+- llvm XW: 8,704
+- llvm XW matched: 8,704
+- spelling rules used: c.lui 6-bit field = llvm 20-bit value x1953, ret x1
+
+Mismatches by class:
+- llvm decodes, Ghidra BAD: 1  (c.unimp x1)
+- mnemonic differs: 111  (Ghidra c.addi / llvm c.nop x63, Ghidra c.slli64 / llvm c.slli x32, Ghidra c.srli64 / llvm c.srli x8, Ghidra c.srai64 / llvm c.srai x8)
+- Ghidra decodes, llvm <unknown>: 65  (c.lwsp x64, c.jr x1)
+
+One example per class (key, Ghidra, llvm):
+- llvm decodes, Ghidra BAD c.unimp: (('parcels', 0), (2, '0000', None, [], ''), ('0000', 'c.unimp', []))
+- mnemonic differs: c.slli64/c.slli: (('parcels', 4), (2, '0200', 'c.slli64', ['zero'], ''), ('0200', 'c.slli', ['zero', 0]))
+- mnemonic differs: c.addi/c.nop: (('parcels', 8), (2, '0500', 'c.addi', ['zero', 1], ''), ('0500', 'c.nop', [1]))
+- Ghidra decodes, llvm <unknown> c.lwsp: (('parcels', 24580), (2, '0240', 'c.lwsp', ['zero', 0, 'sp'], ''), ('0240', None, []))
+- mnemonic differs: c.srli64/c.srli: (('parcels', 49154), (2, '0180', 'c.srli64', ['s0'], ''), ('0180', 'c.srli', ['s0', 0]))
+- Ghidra decodes, llvm <unknown> c.jr: (('parcels', 49156), (2, '0280', 'c.jr', ['zero'], ''), ('0280', None, []))
+- mnemonic differs: c.srai64/c.srai: (('parcels', 50690), (2, '0184', 'c.srai64', ['s0'], ''), ('0184', 'c.srai', ['s0', 0]))
+
+XW space (q0 funct3 001/100/101, q2 funct3 001/101: 10,240 parcels): llvm decodes 8,704 as qk.*; Ghidra agrees on every parcel of that space except 0
+
+WCH table vs llvm-objdump: 0 parcels disagree
+
+Negative controls (planted b43e = ('qk.c.sh', 'a5', 42, 's0') with the offset +2): WCH table caught, llvm XW space caught, p-code caught
+
+Before (Ghidra's RISCV:LE:32:default on the 8,704 XW parcels): c.fld x2,048, c.fldsp x2,048, c.fsd x2,048, c.fsdsp x2,048, BAD x512
+
+RESULT: PASS (the XW checks; the 177 mismatches outside the XW space are Ghidra's own RVC, listed by class above)

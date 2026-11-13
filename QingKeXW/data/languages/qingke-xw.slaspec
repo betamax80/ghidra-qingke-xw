@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 SEL (Mark Thurston). Part of ghidra-qingke-xw.
+#
+# WCH QingKe RV32IMAC + Zba/Zbb/Zbc/Zbs + Zicond + XW + WCH custom, soft-float (ilp32).
+# The included riscv.*.sinc files are unmodified copies from Ghidra 12.1.4
+# (Apache-2.0), qingke.rvc.sinc a marked copy (see NOTICE).
+#
+# The same base as Ghidra's riscv.ilp32d.slaspec, except:
+#   FPSIZE "0"  no F, D or Q, so c.fld/c.fsd/c.fldsp/c.fsdsp (whose slots XW
+#               takes) and c.flw/c.flwsp/c.fsw/c.fswsp are not built;
+#   no V, P or K (the V3V's vector unit is not decoded; V2/V4 have none);
+#   Ghidra's draft bitmanip (riscv.rv32b.sinc) replaced by ratified
+#   Zba/Zbb/Zbc/Zbs with p-code (qingke.zb.sinc); Zicond added;
+#   XW (qingke.xw.sinc) and WCH's custom instructions (qingke.wch.sinc) added.
+
+define endian=little;
+
+@define XLEN 4
+@define XLEN2 8
+@define FLEN 8
+
+@define CONTEXTLEN 4
+
+@define ADDRSIZE "32"
+@define FPSIZE "0"
+
+@include "riscv.reg.sinc"
+@include "riscv.table.sinc"
+@include "qingke.instr.sinc"
+
+# placeholder decode for the custom-0..3 opcodes, as in Ghidra's own variants
+@include "riscv.custom.sinc"

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 SEL (Mark Thurston). Part of ghidra-qingke-xw. -->
+<!-- WCH QingKe RV32IMAC + Zba/Zbb/Zbc/Zbs + Zicond + XW + WCH custom, soft-float. -->
+<language_definitions>
+
+  <language processor="RISCV"
+            endian="little"
+            size="32"
+            variant="QingKe-XW"
+            version="1.1"
+            slafile="qingke-xw.sla"
+            processorspec="RV32.pspec"
+            id="RISCV:LE:32:QingKe-XW">
+    <description>WCH QingKe RV32IMAC+Zba/Zbb/Zbc/Zbs+Zicond with XW (qk.c.*) compressed loads/stores and WCH's mcpy/mrsl/mrslu/wexti/delay, soft-float</description>
+    <compiler name="gcc" spec="riscv32.cspec" id="gcc"/>
+    <external_name tool="gnu" name="riscv:rv32"/>
+    <external_name tool="DWARF.register.mapping.file" name="riscv32.dwarf"/>
+  </language>
+
+</language_definitions>
